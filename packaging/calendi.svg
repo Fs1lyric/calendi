@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="4" y="4" width="120" height="120" rx="27" fill="#ffffff"/>
+  <text x="64" y="38" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#ff3b30" letter-spacing="0.5">MON</text>
+  <text x="64" y="100" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="62" font-weight="300" fill="#1c1c1e">17</text>
+</svg>

@@ -1,0 +1,13 @@
+[Unit]
+Description=Calendi booking page (localhost; cloudflared publishes it)
+After=network.target
+
+[Service]
+ExecStart=%h/.local/bin/lyric-cal-booker --port 8787
+Restart=on-failure
+RestartSec=5
+MemoryMax=64M
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

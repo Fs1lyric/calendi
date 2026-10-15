@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Book a time</title>
+<style>
+  :root {
+    --bg: #1e1b2e; --surface: #26223a; --surface-2: #302b47; --line: #3a3455;
+    --ink: #ece8f6; --ink-2: #b2bad1; --ink-3: #8580a3; --accent: #f4c3e8; --pink: #f48aab;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center; padding: 32px 16px;
+  }
+  main { width: 100%; max-width: 860px; }
+  .card { background: var(--surface); border-radius: 14px; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 26px; font-weight: 600; display: flex; align-items: center; }
+  .meta { color: var(--ink-2); margin: 0; }
+  .about { color: var(--ink-2); margin: 12px 0 0; white-space: pre-line; }
+  .dot { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-right: 8px; }
+  .layout { display: grid; grid-template-columns: 1fr 220px; gap: 24px; margin-top: 24px; }
+  @media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
+  .month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .month-head strong { font-weight: 600; }
+  button {
+    font: inherit; color: var(--ink); background: var(--surface-2); border: 0; border-radius: 8px;
+    padding: 8px 12px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: var(--line); }
+  button:disabled { cursor: default; opacity: .35; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .wd { text-align: center; font-size: 12px; color: var(--ink-3); padding: 4px 0; }
+  .day { height: 44px; padding: 0; background: transparent; color: var(--ink-3); }
+  .day.open { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+  .day.picked { background: var(--accent); color: var(--bg); }
+  .times { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; padding-right: 4px; scrollbar-color: var(--line) transparent; }
+  .times h2 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .time { border: 1px solid var(--line); background: transparent; color: var(--accent); }
+  .hint { color: var(--ink-3); font-size: 14px; }
+  form { display: grid; gap: 14px; margin-top: 20px; max-width: 460px; }
+  label { display: grid; gap: 6px; color: var(--ink-2); font-size: 14px; }
+  input, textarea {
+    font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .primary { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .primary:hover:not(:disabled) { background: #f9d6ef; }
+  .row { display: flex; gap: 8px; }
+  .error { color: var(--pink); }
+  .when { font-size: 18px; margin: 16px 0 0; }
+  .zone { color: var(--ink-3); font-size: 13px; margin-top: 16px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <div id="head">
+      <h1><span class="dot" id="dot"></span><span id="title">Loading…</span></h1>
+      <p class="meta" id="meta"></p>
+      <p class="about" id="about"></p>
+    </div>
+
+    <section id="pick" hidden>
+      <div class="layout">
+        <div>
+          <div class="month-head">
+            <button id="prev" aria-label="Previous month">‹</button>
+            <strong id="month"></strong>
+            <button id="next" aria-label="Next month">›</button>
+          </div>
+          <div class="grid" id="days"></div>
+        </div>
+        <div class="times" id="times"><p class="hint">Pick a day to see open times.</p></div>
+      </div>
+      <p class="zone" id="zone"></p>
+    </section>
+
+    <section id="details" hidden>
+      <p class="when" id="when"></p>
+      <form id="form">
+        <label>Your name <input name="guest_name" required maxlength="100" autocomplete="name"></label>
+        <label>Email <input name="guest_email" type="email" required maxlength="200" autocomplete="email"></label>
+        <label>Anything to share first? <textarea name="guest_note" rows="3" maxlength="2000"></textarea></label>
+        <p class="error" id="form-error" hidden></p>
+        <div class="row">
+          <button type="button" id="back">Back</button>
+          <button type="submit" class="primary" id="confirm">Confirm booking</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="done" hidden>
+      <p class="when" id="done-when"></p>
+      <p class="meta">You're booked. Add it to your own calendar so you don't miss it.</p>
+    </section>
+
+    <p class="error" id="error" hidden></p>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const slug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ""));
+const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+let type = null, shown = null, picked = null, slotsByDay = new Map(), chosen = null;
+
+const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtLong = (iso) => new Date(iso).toLocaleString([], { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+function show(section) {
+  for (const id of ["pick", "details", "done"]) $(id).hidden = id !== section;
+}
+
+function fail(message) {
+  $("error").textContent = message;
+  $("error").hidden = false;
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.error || "Something went wrong."), { status: res.status });
+  return body;
+}
+
+async function loadMonth() {
+  const first = new Date(shown.getFullYear(), shown.getMonth(), 1);
+  const next = new Date(shown.getFullYear(), shown.getMonth() + 1, 1);
+  $("month").textContent = first.toLocaleDateString([], { month: "long", year: "numeric" });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const last = new Date(today); last.setDate(last.getDate() + type.max_days_ahead + 1);
+  $("prev").disabled = first <= today;
+  $("next").disabled = next >= last;
+  slotsByDay = new Map();
+  drawDays();
+  const from = first < today ? today : first;
+  if (from < next) {
+    const q = new URLSearchParams({ type: slug, from: from.toISOString(), to: next.toISOString(), tz: zone });
+    try {
+      const { slots } = await api(`/api/slots?${q}`);
+      for (const s of slots) {
+        const key = dayKey(new Date(s));
+        if (!slotsByDay.has(key)) slotsByDay.set(key, []);
+        slotsByDay.get(key).push(s);
+      }
+    } catch (e) { fail(e.message); }
+  }
+  drawDays();
+  drawTimes();
+}
+
+function drawDays() {
+  const days = $("days");
+  days.replaceChildren();
+  for (const name of ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]) {
+    const el = document.createElement("div");
+    el.className = "wd"; el.textContent = name; days.append(el);
+  }
+  const first = new Date(shown.getFullYear(), shown.getMonth(), 1);
+  for (let i = 0; i < (first.getDay() + 6) % 7; i++) days.append(document.createElement("div"));
+  const count = new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate();
+  for (let n = 1; n <= count; n++) {
+    const d = new Date(shown.getFullYear(), shown.getMonth(), n);
+    const key = dayKey(d);
+    const b = document.createElement("button");
+    const open = slotsByDay.has(key);
+    b.className = "day" + (open ? " open" : "") + (key === picked ? " picked" : "");
+    b.textContent = n;
+    b.disabled = !open;
+    if (open) b.setAttribute("aria-label", d.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" }));
+    b.onclick = () => { picked = key; drawDays(); drawTimes(); };
+    days.append(b);
+  }
+}
+
+function drawTimes() {
+  const box = $("times");
+  box.replaceChildren();
+  const list = picked && slotsByDay.get(picked);
+  if (!list) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = slotsByDay.size ? "Pick a day to see open times." : "No open times this month.";
+    box.append(p);
+    return;
+  }
+  const h = document.createElement("h2");
+  h.textContent = new Date(list[0]).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+  box.append(h);
+  for (const s of list) {
+    const b = document.createElement("button");
+    b.className = "time"; b.textContent = fmtTime(s);
+    b.onclick = () => { chosen = s; $("when").textContent = fmtLong(s); $("form-error").hidden = true; show("details"); };
+    box.append(b);
+  }
+}
+
+$("prev").onclick = () => { shown = new Date(shown.getFullYear(), shown.getMonth() - 1, 1); picked = null; loadMonth(); };
+$("next").onclick = () => { shown = new Date(shown.getFullYear(), shown.getMonth() + 1, 1); picked = null; loadMonth(); };
+$("back").onclick = () => show("pick");
+
+$("form").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const data = Object.fromEntries(new FormData(ev.target));
+  $("confirm").disabled = true;
+  try {
+    const b = await api("/api/book", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...data, slug, start: new Date(chosen).toISOString().replace(/\.\d{3}Z$/, "Z"), guest_tz: zone }),
+    });
+    $("done-when").textContent = `${b.title}, ${fmtLong(b.start)}`;
+    show("done");
+  } catch (e) {
+    $("form-error").textContent = e.message;
+    $("form-error").hidden = false;
+    if (e.status === 409) { picked = null; loadMonth(); }
+  } finally {
+    $("confirm").disabled = false;
+  }
+};
+
+(async () => {
+  $("zone").textContent = `Times are shown in ${zone}.`;
+  try {
+    type = await api(`/api/types/${encodeURIComponent(slug)}`);
+  } catch (e) {
+    $("title").textContent = "This link isn't open";
+    $("meta").textContent = "Check the address, or ask for a new link.";
+    return;
+  }
+  document.title = `Book: ${type.title}`;
+  $("title").textContent = type.title;
+  $("meta").textContent = `${type.duration_min} minutes`;
+  $("about").textContent = type.description;
+  if (type.color) $("dot").style.background = type.color;
+  shown = new Date(); shown.setDate(1);
+  show("pick");
+  loadMonth();
+})();
+</script>
+</body>
+</html>

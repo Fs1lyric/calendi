@@ -1,0 +1,16 @@
+[package]
+name = "lyric-cal-core"
+description = "Lyric Cal's shared core: the SQLite store and the booking slot engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+chrono-tz.workspace = true
+rrule.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

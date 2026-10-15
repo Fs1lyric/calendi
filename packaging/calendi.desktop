@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=Calendi
+GenericName=Calendar
+Comment=Calendar and booking links
+Exec=calendi
+Icon=calendi
+Terminal=false
+Categories=Office;Calendar;
+Keywords=calendar;events;schedule;booking;
+StartupWMClass=calendi
+Actions=new;month;
+
+[Desktop Action new]
+Name=New event
+Exec=calendi --new
+
+[Desktop Action month]
+Name=Month view
+Exec=calendi --view month

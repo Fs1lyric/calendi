@@ -1,0 +1,18 @@
+[package]
+name = "lyric-cal"
+description = "Lyric Cal: the desktop calendar"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lyric-cal-core = { path = "../core" }
+chrono.workspace = true
+chrono-tz.workspace = true
+eframe = { version = "0.36.2", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
+iana-time-zone = "0.1"
+
+[[bin]]
+name = "calendi"
+path = "src/main.rs"
