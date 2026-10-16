@@ -291,6 +291,21 @@ impl App {
 
 const USAGE: &str = "usage: calendi [--view month|week|day] [--booking] [--new]";
 
+/// Vsync stays off: on Wayland a vsynced swap waits for a frame callback, and Hyprland
+/// sends none to a window on a hidden workspace, so the 30s repaint would block the
+/// main thread there until the compositor reports Calendi as not responding.
+fn native_options() -> eframe::NativeOptions {
+    eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title("Calendi")
+            .with_app_id("calendi")
+            .with_inner_size([1180.0, 780.0])
+            .with_min_inner_size([360.0, 320.0]),
+        glow_options: eframe::egui_glow::GlowConfiguration { vsync: false, ..Default::default() },
+        ..Default::default()
+    }
+}
+
 fn main() -> eframe::Result {
     let mut view = View::Week;
     let mut quick_add = false;
@@ -325,17 +340,9 @@ fn main() -> eframe::Result {
             std::process::exit(1);
         }
     };
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("Calendi")
-            .with_app_id("calendi")
-            .with_inner_size([1180.0, 780.0])
-            .with_min_inner_size([360.0, 320.0]),
-        ..Default::default()
-    };
     eframe::run_native(
         "Calendi",
-        options,
+        native_options(),
         Box::new(move |cc| {
             theme::apply(&cc.egui_ctx);
             let mut app = App::new(db, tz);
@@ -349,4 +356,12 @@ fn main() -> eframe::Result {
             Ok(Box::new(app))
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn swaps_never_wait_on_the_compositor() {
+        assert!(!super::native_options().glow_options.vsync);
+    }
 }
